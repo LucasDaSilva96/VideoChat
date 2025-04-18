@@ -2,7 +2,8 @@ import express from 'express';
 import http from 'http';
 import { Server as IOServer } from 'socket.io';
 import cors from 'cors';
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config();
 const app = express();
 app.use(cors());
 const server = http.createServer(app);
@@ -13,6 +14,12 @@ const io = new IOServer(server, {
 io.on('connection', (socket) => {
     console.log('✅', socket.id, 'connected');
     socket.on('join-room', (roomId) => {
+        // 1) collect everyone in room before join
+        const clients = Array.from(io.sockets.adapter.rooms.get(roomId) || []);
+        console.log('👥 clients in room', roomId, clients);
+        // send that list to the new peer
+        socket.emit('all-users', clients.filter((id) => id !== socket.id));
+        // 2) actually join, then notify the rest
         socket.join(roomId);
         socket.to(roomId).emit('user-joined', socket.id);
     });
@@ -25,8 +32,7 @@ io.on('connection', (socket) => {
         // optionally notify peers…
     });
 });
-const PORT = process.env.PORT || 4000;
-console.log(process.env.PORT, 'PORT');
+const PORT = process.env.PORT || 8080;
 server.listen(PORT, () => {
     console.log(`🚀 Signaling server listening on http://localhost:${PORT}`);
 });

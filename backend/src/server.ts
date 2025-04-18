@@ -18,7 +18,16 @@ const io = new IOServer(server, {
 io.on('connection', (socket) => {
   console.log('✅', socket.id, 'connected');
 
-  socket.on('join-room', (roomId: string) => {
+  socket.on('join-room', (roomId) => {
+    // 1) collect everyone in room before join
+    const clients = Array.from(io.sockets.adapter.rooms.get(roomId) || []);
+    // send that list to the new peer
+    socket.emit(
+      'all-users',
+      clients.filter((id) => id !== socket.id)
+    );
+
+    // 2) actually join, then notify the rest
     socket.join(roomId);
     socket.to(roomId).emit('user-joined', socket.id);
   });
